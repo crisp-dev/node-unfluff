@@ -2,6 +2,8 @@ cheerio = require("cheerio")
 extractor = require("./extractor")
 cleaner = require("./cleaner")
 
+require("events").EventEmitter.defaultMaxListeners = 50
+
 module.exports = unfluff = (html, language) ->
   doc = cheerio.load(html)
   lng = language || extractor.lang(doc)
