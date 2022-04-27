@@ -33,7 +33,8 @@ replaceWithText = (doc, topNode) ->
 
 cleanParagraphText = (rawText) ->
   txt = rawText.trim()
-  txt.replace(/[\s\t]+/g, ' ')
+  txt = txt.replace(/[\s\t]+/g, ' ')
+  txt = txt.substring(0, 2000)
   txt
 
 # Turn an html element (and children) into nicely formatted text
