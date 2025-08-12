@@ -1,5 +1,8 @@
 _ = require("lodash")
 
+# safety limit on each() doing a replaceWith(), since this can lead to DOS
+recurseReplaceLimit = 500
+
 module.exports = cleaner = (doc) ->
   removeBodyClasses(doc)
   cleanArticleTags(doc)
@@ -33,20 +36,22 @@ cleanArticleTags = (doc) ->
 
 cleanEmTags = (doc) ->
   ems = doc("em")
-  ems.each () ->
+  ems.each (index) ->
     images = ems.find("img")
-    if images.length == 0
+    if images.length == 0 && index < recurseReplaceLimit
       doc(this).replaceWith(doc(this).html())
 
 cleanCodeBlocks = (doc) ->
   nodes = doc("[class*='highlight-'], pre code, code, pre, ul.task-list")
-  nodes.each () ->
-    doc(this).replaceWith(doc(this).text())
+  nodes.each (index) ->
+    if index < recurseReplaceLimit
+      doc(this).replaceWith(doc(this).text())
 
 removeDropCaps = (doc) ->
   nodes = doc("span[class~=dropcap], span[class~=drop_cap]")
-  nodes.each () ->
-    doc(this).replaceWith(doc(this).html())
+  nodes.each (index) ->
+    if index < recurseReplaceLimit
+      doc(this).replaceWith(doc(this).html())
 
 removeScriptsStyles = (doc) ->
   doc("script").remove()
@@ -74,13 +79,15 @@ removeNodesRegex = (doc, pattern) ->
 
 cleanParaSpans = (doc) ->
   nodes = doc("p span")
-  nodes.each () ->
-    doc(this).replaceWith(doc(this).html())
+  nodes.each (index) ->
+    if index < recurseReplaceLimit
+      doc(this).replaceWith(doc(this).html())
 
 cleanUnderlines = (doc) ->
   nodes = doc("u")
-  nodes.each () ->
-    doc(this).replaceWith(doc(this).html())
+  nodes.each (index) ->
+    if index < recurseReplaceLimit
+      doc(this).replaceWith(doc(this).html())
 
 getReplacementNodes = (doc, div) ->
   replacementText = []
@@ -151,33 +158,36 @@ divToPara = (doc, domType) ->
 
   tags = ['a', 'blockquote', 'dl', 'div', 'img', 'ol', 'p', 'pre', 'table', 'ul']
 
-  divs.each () ->
-    div = doc(this)
+  divs.each (index) ->
+    if index < recurseReplaceLimit
+      div = doc(this)
 
-    items = div.find(tags.join(", "))
+      items = div.find(tags.join(", "))
 
-    if items.length == 0
-      replaceWithPara(doc, this)
-    else
-      replaceNodes = getReplacementNodes(doc, div)
+      if items.length == 0
+        replaceWithPara(doc, this)
+      else
+        replaceNodes = getReplacementNodes(doc, div)
 
-      html = ""
-      _.each replaceNodes, (node) ->
-        if node != ''
-          html += "<p>#{node}</p>"
+        html = ""
+        _.each replaceNodes, (node) ->
+          if node != ''
+            html += "<p>#{node}</p>"
 
-      div.empty()
-      doc(div).replaceWith("#{html}")
+        div.empty()
+        doc(div).replaceWith("#{html}")
 
 # For plain text nodes directly inside of p tags that contain random single
 # line breaks, remove those junky line breaks. They would never be rendered
 # by a browser anyway.
 cleanErrantLinebreaks = (doc) ->
-  doc("p").each () ->
-    node = doc(this)
-    c = node.contents()
+  doc("p").each (index) ->
+    if index < recurseReplaceLimit
+      node = doc(this)
+      c = node.contents()
 
-    doc(c).each () ->
-      n = doc(this)
-      if n[0].type == 'text'
-        n.replaceWith(n.text().replace(/([^\n])\n([^\n])/g, "$1 $2"))
+      doc(c).each (subindex) ->
+        if subindex < recurseReplaceLimit
+          n = doc(this)
+          if n[0].type == 'text'
+            n.replaceWith(n.text().replace(/([^\n])\n([^\n])/g, "$1 $2"))
